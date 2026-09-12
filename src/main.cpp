@@ -26,7 +26,7 @@ static void print_usage(const char* prog) {
               << "Options:\n"
               << "  --model <path>      Path to Quillan model file (.qbin)\n"
               << "  --prompt <text>     Text prompt for generation\n"
-              << "  --mode <mode>       Routing mode: 'sparse' (Top-4) or 'dense' (All-34) [default: sparse]\n"
+              << "  --mode <mode>       Routing mode: 'dense' (All-34 canonical) or 'sparse' (Top-4 ablation) [default: dense]\n"
               << "  --tokens <n>        Maximum tokens to generate [default: 50]\n"
               << "  --temp <float>      Generation temperature [default: 0.7]\n"
               << "  --top-p <float>     Nucleus sampling cutoff [default: 0.9]\n"
@@ -46,7 +46,7 @@ int main(int argc, char** argv) {
 
     std::string model_path = "";
     std::string prompt = "Explain why deliberation is superior to next-token prediction.";
-    quillan_routing_mode mode = QUILLAN_MODE_SPARSE_TOP4;
+    quillan_routing_mode mode = QUILLAN_MODE_DENSE_PULL;
     int32_t max_tokens = 50;
     float temp = 0.7f;
     float top_p = 0.9f;

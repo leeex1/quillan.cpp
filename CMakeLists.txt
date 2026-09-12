@@ -7,7 +7,10 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # Optimization and Architecture flags
 if(MSVC)
-    add_compile_options(/O2 /W3 /arch:AVX2 /MP)
+    add_compile_options(/W3 /arch:AVX2 /MP)
+    if(CMAKE_BUILD_TYPE STREQUAL "Release" OR NOT CMAKE_BUILD_TYPE)
+        add_compile_options(/O2)
+    endif()
 else()
     add_compile_options(-O3 -Wall -Wextra -mavx2 -mfma)
 endif()
