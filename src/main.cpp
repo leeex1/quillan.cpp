@@ -45,6 +45,7 @@ int main(int argc, char** argv) {
     print_banner();
 
     std::string model_path = "";
+    std::string vocab_path = "quillan_vocab.txt";
     std::string prompt = "Explain why deliberation is superior to next-token prediction.";
     quillan_routing_mode mode = QUILLAN_MODE_DENSE_PULL;
     int32_t max_tokens = 50;
@@ -55,6 +56,8 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--model") == 0 && i + 1 < argc) {
             model_path = argv[++i];
+        } else if (strcmp(argv[i], "--vocab") == 0 && i + 1 < argc) {
+            vocab_path = argv[++i];
         } else if (strcmp(argv[i], "--prompt") == 0 && i + 1 < argc) {
             prompt = argv[++i];
         } else if (strcmp(argv[i], "--mode") == 0 && i + 1 < argc) {
@@ -111,7 +114,7 @@ int main(int argc, char** argv) {
         model = quillan_model_create(&default_cfg, mode);
     }
 
-    quillan_tokenizer* tok = quillan_tokenizer_load("");
+    quillan_tokenizer* tok = quillan_tokenizer_load(vocab_path.c_str());
     quillan_state* state = quillan_state_create(model);
 
     std::cout << "\n[Deliberation Prompt]: \"" << prompt << "\"\n" << std::endl;

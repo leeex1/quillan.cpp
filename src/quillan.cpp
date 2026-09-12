@@ -490,9 +490,36 @@ quillan_tokenizer* quillan_tokenizer_load(const char* vocab_path) {
     auto tok = std::make_unique<quillan_tokenizer>();
     tok->eos_token_id = 0;
     tok->unk_token_id = 1;
-    // Default fallback basic token representation
-    for (int i = 0; i < 256; ++i) {
-        tok->id_to_token.push_back(std::string(1, (char)i));
+
+    bool loaded_file = false;
+    if (vocab_path && std::strlen(vocab_path) > 0) {
+        std::ifstream vf(vocab_path);
+        if (vf.is_open()) {
+            tok->id_to_token.clear();
+            std::string line;
+            while (std::getline(vf, line)) {
+                std::string token_str;
+                for (size_t i = 0; i < line.length(); ++i) {
+                    if (line[i] == '\\' && i + 1 < line.length()) {
+                        if (line[i+1] == 'n') { token_str += '\n'; ++i; continue; }
+                        if (line[i+1] == 'r') { token_str += '\r'; ++i; continue; }
+                    }
+                    token_str += line[i];
+                }
+                tok->id_to_token.push_back(token_str);
+            }
+            if (!tok->id_to_token.empty()) {
+                loaded_file = true;
+            }
+        }
+    }
+
+    if (!loaded_file) {
+        // Default fallback basic token representation
+        tok->id_to_token.clear();
+        for (int i = 0; i < 256; ++i) {
+            tok->id_to_token.push_back(std::string(1, (char)i));
+        }
     }
     return tok.release();
 }
