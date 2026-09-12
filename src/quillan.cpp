@@ -355,8 +355,13 @@ int32_t quillan_deliberate_step(
     const int32_t pos = state->current_seq_len;
 
     // 1. Phase 1: Ingestion & Continuous RoPE
-    // (Simulate token embedding lookup and positional encoding)
-    std::vector<float> x(hdim, 0.01f * (float)(input_token % 100));
+    std::vector<float> x(hdim);
+    if (!model->token_embeddings.data.empty() && input_token >= 0 && input_token < cfg.vocab_size) {
+        const float* emb = model->token_embeddings.data.data() + (input_token * hdim);
+        std::copy(emb, emb + hdim, x.begin());
+    } else {
+        for (int d = 0; d < hdim; ++d) x[d] = 0.01f * (float)((input_token + d) % 100);
+    }
     apply_rope(x.data(), hdim, pos);
 
     // 2. Phase 2: Nine-Vector Semantic Prism Decomposition
@@ -442,8 +447,38 @@ int32_t quillan_deliberate_step(
         out_telem->token_latency_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     }
 
-    // Return synthetic selected token
-    int32_t next_token = (input_token * 1337 + 42) % cfg.vocab_size;
+    // Return selected token (via LM head / tied embedding projection if loaded, or structured fallback)
+    int32_t next_token = 0;
+    if (!model->lm_head.data.empty()) {
+        float max_logit = -1e9f;
+        int32_t best_tok = 0;
+        for (int32_t v = 0; v < cfg.vocab_size; ++v) {
+            float logit = 0.0f;
+            const float* w = model->lm_head.data.data() + (v * hdim);
+            for (int32_t d = 0; d < hdim; ++d) logit += council_out[d] * w[d];
+            if (logit > max_logit) {
+                max_logit = logit;
+                best_tok = v;
+            }
+        }
+        next_token = best_tok;
+    } else if (!model->token_embeddings.data.empty()) {
+        float max_logit = -1e9f;
+        int32_t best_tok = 0;
+        const int32_t search_vocab = std::min(cfg.vocab_size, (int32_t)(model->token_embeddings.data.size() / hdim));
+        for (int32_t v = 0; v < search_vocab; ++v) {
+            float logit = 0.0f;
+            const float* w = model->token_embeddings.data.data() + (v * hdim);
+            for (int32_t d = 0; d < hdim; ++d) logit += council_out[d] * w[d];
+            if (logit > max_logit) {
+                max_logit = logit;
+                best_tok = v;
+            }
+        }
+        next_token = best_tok;
+    } else {
+        next_token = (input_token * 1337 + 42) % cfg.vocab_size;
+    }
     return (ccrl_score >= cfg.ccrl_threshold) ? next_token : 0; // 0 = safe refusal sentinel
 }
 
@@ -478,6 +513,13 @@ int32_t quillan_tokenize(const quillan_tokenizer* tok, const char* text, int32_t
 
 int32_t quillan_detokenize(const quillan_tokenizer* tok, int32_t token, char* buf, int32_t max_len) {
     if (!buf || max_len <= 1) return 0;
+    if (tok && token >= 0 && token < (int32_t)tok->id_to_token.size()) {
+        const std::string& s = tok->id_to_token[token];
+        int32_t copy_len = std::min((int32_t)s.length(), max_len - 1);
+        std::memcpy(buf, s.data(), copy_len);
+        buf[copy_len] = '\0';
+        return copy_len;
+    }
     if (token >= 32 && token < 127) {
         buf[0] = (char)token;
         buf[1] = '\0';
