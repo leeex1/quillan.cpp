@@ -18,12 +18,25 @@ endif()
 # Include directories
 include_directories(include)
 
-# Core Library
+# Core Static Library
 add_library(quillan STATIC
     src/quillan.cpp
 )
 
 target_include_directories(quillan PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+
+# Core Shared Library (quillan_shared.dll for Python Ctypes)
+add_library(quillan_shared SHARED
+    src/quillan.cpp
+)
+set_target_properties(quillan_shared PROPERTIES
+    OUTPUT_NAME "quillan_shared"
+    DEFINE_SYMBOL "QUILLAN_BUILD_DLL"
+)
+target_include_directories(quillan_shared PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )

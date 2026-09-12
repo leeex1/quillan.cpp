@@ -64,29 +64,41 @@ typedef struct quillan_state quillan_state;
 // Callback for streaming generation
 typedef bool (*quillan_token_callback)(int32_t token_id, const char* token_str, const quillan_telemetry* telem, void* user_data);
 
+#if defined(_WIN32)
+  #if defined(QUILLAN_BUILD_DLL)
+    #define QUILLAN_API __declspec(dllexport)
+  #elif defined(QUILLAN_USE_DLL)
+    #define QUILLAN_API __declspec(dllimport)
+  #else
+    #define QUILLAN_API
+  #endif
+#else
+  #define QUILLAN_API
+#endif
+
 // ----------------------------------------------------------------------------
 // Public API Functions
 // ----------------------------------------------------------------------------
 
 // Model lifecycle
-quillan_model* quillan_model_create(const quillan_config* config, quillan_routing_mode mode);
-quillan_model* quillan_model_load(const char* model_path, quillan_routing_mode mode);
-void quillan_model_free(quillan_model* model);
-const quillan_config* quillan_model_get_config(const quillan_model* model);
+QUILLAN_API quillan_model* quillan_model_create(const quillan_config* config, quillan_routing_mode mode);
+QUILLAN_API quillan_model* quillan_model_load(const char* model_path, quillan_routing_mode mode);
+QUILLAN_API void quillan_model_free(quillan_model* model);
+QUILLAN_API const quillan_config* quillan_model_get_config(const quillan_model* model);
 
 // Tokenizer lifecycle
-quillan_tokenizer* quillan_tokenizer_load(const char* vocab_path);
-void quillan_tokenizer_free(quillan_tokenizer* tok);
-int32_t quillan_tokenize(const quillan_tokenizer* tok, const char* text, int32_t* tokens, int32_t max_tokens);
-int32_t quillan_detokenize(const quillan_tokenizer* tok, int32_t token, char* buf, int32_t max_len);
+QUILLAN_API quillan_tokenizer* quillan_tokenizer_load(const char* vocab_path);
+QUILLAN_API void quillan_tokenizer_free(quillan_tokenizer* tok);
+QUILLAN_API int32_t quillan_tokenize(const quillan_tokenizer* tok, const char* text, int32_t* tokens, int32_t max_tokens);
+QUILLAN_API int32_t quillan_detokenize(const quillan_tokenizer* tok, int32_t token, char* buf, int32_t max_len);
 
 // Execution State & Deliberation
-quillan_state* quillan_state_create(const quillan_model* model);
-void quillan_state_reset(quillan_state* state);
-void quillan_state_free(quillan_state* state);
+QUILLAN_API quillan_state* quillan_state_create(const quillan_model* model);
+QUILLAN_API void quillan_state_reset(quillan_state* state);
+QUILLAN_API void quillan_state_free(quillan_state* state);
 
 // Single token deliberation step
-int32_t quillan_deliberate_step(
+QUILLAN_API int32_t quillan_deliberate_step(
     quillan_model* model,
     quillan_state* state,
     int32_t input_token,
@@ -96,7 +108,7 @@ int32_t quillan_deliberate_step(
 );
 
 // High-level text generation
-int32_t quillan_generate(
+QUILLAN_API int32_t quillan_generate(
     quillan_model* model,
     const quillan_tokenizer* tok,
     quillan_state* state,
@@ -109,8 +121,8 @@ int32_t quillan_generate(
 );
 
 // Hardware & Benchmark Telemetry
-bool quillan_hardware_has_avx2(void);
-void quillan_benchmark_gemm(int32_t rows, int32_t cols, int32_t iterations);
+QUILLAN_API bool quillan_hardware_has_avx2(void);
+QUILLAN_API void quillan_benchmark_gemm(int32_t rows, int32_t cols, int32_t iterations);
 
 #ifdef __cplusplus
 }
