@@ -4,8 +4,11 @@
 [![Language: C++17](https://img.shields.io/badge/Language-C%2B%2B17-00599C.svg)](https://en.wikipedia.org/wiki/C%2B%2B17)
 [![Hardware: AVX2/SIMD](https://img.shields.io/badge/Hardware-AVX2_SIMD-brightgreen.svg)]()
 [![Model: Quillan--Ronin](https://img.shields.io/badge/Model-Quillan--Ronin_v5.4-darkblue.svg)](https://github.com/leeex1/Quillan-Ronin)
+[![Ecosystem: trending-local-llms](https://img.shields.io/badge/trending--local--llms-Verified_Inference_Engine-success.svg)](https://github.com/andyholst/trending-local-llms)
 
 **`quillan.cpp`** is a high-performance, lightweight, standalone C++17 inference engine engineered for the **Quillan-Ronin sovereign multi-tier cognitive architecture**. 
+
+Officially indexed and classified as a verified standalone C++ inference engine in [andyholst/trending-local-llms](https://github.com/andyholst/trending-local-llms) alongside `llama.cpp` and `vLLM`.
 
 Inspired by the minimalistic philosophies of `llama.cpp` and `bitnet.cpp`, `quillan.cpp` operates with **zero heavyweight runtime dependencies** (no PyTorch, no LibTorch, no Python runtime), running fully self-contained on commodity CPU and edge hardware.
 
