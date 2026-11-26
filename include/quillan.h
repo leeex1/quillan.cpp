@@ -17,10 +17,86 @@ extern "C" {
 #endif
 
 #define QUILLAN_MAGIC 0x4E4C4C51 // "QLLN" in little-endian
-#define QUILLAN_VERSION 1
+#define QUILLAN_VERSION 1        // legacy header (config-only) -- still fully supported
+#define QUILLAN_QBIN_VERSION 2   // v2: config + architecture descriptor + tensor section table
 #define QUILLAN_DEFAULT_VOCAB 50257
 #define QUILLAN_NUM_EXPERTS 34
 #define QUILLAN_NUM_RAYS 9
+#define QLLN_MAX_MOE_LAYERS 64
+#define QLLN_NAME_LEN 64
+#define QLLN_ARCH_NAME_LEN 64
+
+// ---------------------------------------------------------------------------
+// .qbin v2 on-disk protocol (little-endian, byte-packed structs)
+//
+//   [0]   uint32 magic      = QUILLAN_MAGIC (0x4E4C4C51)
+//   [4]   uint32 version    = 1 (legacy) or 2 (this spec)
+//   [8]   quillan_config    (44 bytes) -- identical to v1, so v1 readers still
+//                                        parse the base config of a v2 file
+//   [52]  quillan_arch_desc (372 bytes) -- v2 only
+//   [424] uint32 section_count
+//   [428] quillan_tensor_section[section_count] (104 bytes each)
+//   [..]  tensor payload block (raw little-endian bytes, no padding)
+//
+// The v1 loader path is byte-for-byte unchanged: version==1 falls through to
+// the original config-only behavior. Only version==2 activates real weights.
+// ---------------------------------------------------------------------------
+
+typedef enum {
+    QLLN_ARCH_LEGACY_ONI      = 0,
+    QLLN_ARCH_SOVEREIGN_MINI  = 1,
+    QLLN_ARCH_SOVEREIGN_FLAGSHIP = 2,
+    QLLN_ARCH_SOVEREIGN_DRAGON = 3,
+    QLLN_ARCH_CUSTOM          = 0x7FFFFFFF
+} quillan_arch_id;
+
+typedef enum {
+    QLLN_FMT_FP32_DENSE       = 0, // legacy dense fp32 sections (reserved)
+    QLLN_FMT_PACKED_TERNARY_V1 = 1 // 2-bit uint8 q_packed + fp16 gamma + int8 embeddings
+} quillan_packed_format;
+
+typedef enum {
+    QLLN_DT_F32 = 0,
+    QLLN_DT_F16 = 1,
+    QLLN_DT_I8  = 2,
+    QLLN_DT_U8  = 3,
+    QLLN_DT_I32 = 4
+} quillan_dtype;
+
+typedef enum {
+    QLLN_FLAG_QKV_BIAS       = 1u,
+    QLLN_FLAG_TIE_EMBEDDINGS = 2u,
+    QLLN_FLAG_USE_RHT        = 4u
+} quillan_arch_flags;
+
+#pragma pack(push, 1)
+typedef struct {
+    int32_t arch_id;
+    int32_t head_dim;
+    int32_t num_attention_heads;
+    int32_t num_kv_heads;
+    int32_t num_moe_layers;
+    int32_t num_planes_attn;
+    int32_t num_planes_ffn;
+    int32_t group_size;
+    int32_t packed_format;
+    int32_t flags;
+    int32_t moe_layer_indices[QLLN_MAX_MOE_LAYERS]; // -1 padded
+    float   rms_norm_eps;
+    float   rope_theta;
+    int32_t orig_max_pos;
+    char    arch_name[QLLN_ARCH_NAME_LEN];
+} quillan_arch_desc;
+
+typedef struct {
+    char     name[QLLN_NAME_LEN];  // exact packed-safetensors state_dict key
+    uint32_t dtype;                // quillan_dtype
+    uint32_t rank;
+    int32_t  dims[4];              // row-major, unused dims = 0
+    uint64_t offset;               // bytes from start of payload block
+    uint64_t nbytes;
+} quillan_tensor_section;
+#pragma pack(pop)
 
 // Execution routing modes
 typedef enum {
@@ -85,6 +161,11 @@ QUILLAN_API quillan_model* quillan_model_create(const quillan_config* config, qu
 QUILLAN_API quillan_model* quillan_model_load(const char* model_path, quillan_routing_mode mode);
 QUILLAN_API void quillan_model_free(quillan_model* model);
 QUILLAN_API const quillan_config* quillan_model_get_config(const quillan_model* model);
+
+// v2 introspection (returns nullptr / 0 for legacy v1 models)
+QUILLAN_API bool quillan_model_has_real_weights(const quillan_model* model);
+QUILLAN_API const quillan_arch_desc* quillan_model_get_arch(const quillan_model* model);
+QUILLAN_API int32_t quillan_model_tensor_count(const quillan_model* model);
 
 // Tokenizer lifecycle
 QUILLAN_API quillan_tokenizer* quillan_tokenizer_load(const char* vocab_path);
