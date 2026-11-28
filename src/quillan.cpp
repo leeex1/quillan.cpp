@@ -83,6 +83,7 @@ struct CouncilExpert {
 // Core Quillan Model Struct
 struct quillan_model {
     quillan_config config;
+    int32_t declared_max_seq_len;
     quillan_routing_mode mode;
 
     // Embeddings
@@ -485,6 +486,7 @@ static void qlln_rope(float* x, int head_dim, int32_t pos, float theta_base,
 quillan_model* quillan_model_create(const quillan_config* config, quillan_routing_mode mode) {
     auto model = std::make_unique<quillan_model>();
     if (config) model->config = *config;
+    model->declared_max_seq_len = model->config.max_seq_len;
     model->mode = mode;
     return model.release();
 }
@@ -758,6 +760,7 @@ quillan_model* quillan_model_load(const char* model_path, quillan_routing_mode m
 
     auto model = std::make_unique<quillan_model>();
     qlln_read_config(buf.data() + 8, model->config);
+    model->declared_max_seq_len = model->config.max_seq_len;
     model->mode = mode;
 
     if (version == QUILLAN_VERSION) {
@@ -816,6 +819,20 @@ void quillan_model_free(quillan_model* model) {
 
 const quillan_config* quillan_model_get_config(const quillan_model* model) {
     return model ? &model->config : nullptr;
+}
+
+int32_t quillan_model_get_declared_max_seq_len(const quillan_model* model) {
+    return model ? model->declared_max_seq_len : 0;
+}
+
+bool quillan_model_set_runtime_max_seq_len(quillan_model* model, int32_t runtime_max_seq_len) {
+    if (!model || runtime_max_seq_len <= 0 ||
+        model->declared_max_seq_len <= 0 ||
+        runtime_max_seq_len > model->declared_max_seq_len) {
+        return false;
+    }
+    model->config.max_seq_len = runtime_max_seq_len;
+    return true;
 }
 
 // ----------------------------------------------------------------------------

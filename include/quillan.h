@@ -161,6 +161,8 @@ QUILLAN_API quillan_model* quillan_model_create(const quillan_config* config, qu
 QUILLAN_API quillan_model* quillan_model_load(const char* model_path, quillan_routing_mode mode);
 QUILLAN_API void quillan_model_free(quillan_model* model);
 QUILLAN_API const quillan_config* quillan_model_get_config(const quillan_model* model);
+QUILLAN_API int32_t quillan_model_get_declared_max_seq_len(const quillan_model* model);
+QUILLAN_API bool quillan_model_set_runtime_max_seq_len(quillan_model* model, int32_t runtime_max_seq_len);
 
 // v2 introspection (returns nullptr / 0 for legacy v1 models)
 QUILLAN_API bool quillan_model_has_real_weights(const quillan_model* model);
