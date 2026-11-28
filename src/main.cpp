@@ -31,6 +31,7 @@ static void print_usage(const char* prog) {
               << "  --temp <float>      Generation temperature [default: 0.7]\n"
               << "  --top-p <float>     Nucleus sampling cutoff [default: 0.9]\n"
               << "  --benchmark         Run AVX2 ternary GEMM performance benchmark\n"
+              << "  --load-check        Load model and verify native packed weights, then exit\n"
               << "  --help              Display this help message\n"
               << std::endl;
 }
@@ -52,6 +53,7 @@ int main(int argc, char** argv) {
     float temp = 0.7f;
     float top_p = 0.9f;
     bool run_bench = false;
+    bool load_check = false;
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--model") == 0 && i + 1 < argc) {
@@ -71,6 +73,8 @@ int main(int argc, char** argv) {
             top_p = std::stof(argv[++i]);
         } else if (strcmp(argv[i], "--benchmark") == 0) {
             run_bench = true;
+        } else if (strcmp(argv[i], "--load-check") == 0) {
+            load_check = true;
         } else if (strcmp(argv[i], "--help") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -106,6 +110,45 @@ int main(int argc, char** argv) {
     quillan_model* model = nullptr;
     if (!model_path.empty()) {
         model = quillan_model_load(model_path.c_str(), mode);
+    }
+
+    if (load_check) {
+        if (model_path.empty()) {
+            std::cerr << "[LoadCheck] ERROR: --load-check requires --model <path>\n";
+            return 2;
+        }
+        if (!model) {
+            std::cerr << "[LoadCheck] ERROR: native model load failed\n";
+            return 1;
+        }
+
+        const quillan_config* cfg = quillan_model_get_config(model);
+        const quillan_arch_desc* arch = quillan_model_get_arch(model);
+        const int32_t tensor_count = quillan_model_tensor_count(model);
+        const bool real_weights = quillan_model_has_real_weights(model);
+        const bool ok = cfg && arch && real_weights && tensor_count > 0 &&
+                        cfg->vocab_size == 151648 && arch->packed_format == 1;
+
+        std::cout << "\n[LoadCheck] config: vocab=" << (cfg ? cfg->vocab_size : -1)
+                  << " hidden=" << (cfg ? cfg->hidden_dim : -1)
+                  << " ffn=" << (cfg ? cfg->ffn_dim : -1)
+                  << " layers=" << (cfg ? cfg->num_layers : -1)
+                  << " experts=" << (cfg ? cfg->num_experts : -1)
+                  << " active=" << (cfg ? cfg->active_experts : -1)
+                  << " max_seq_len=" << (cfg ? cfg->max_seq_len : -1) << "\n";
+        if (arch) {
+            std::cout << "[LoadCheck] arch: name=" << arch->arch_name
+                      << " id=" << arch->arch_id
+                      << " heads=" << arch->num_attention_heads
+                      << " kv_heads=" << arch->num_kv_heads
+                      << " head_dim=" << arch->head_dim
+                      << " packed_format=" << arch->packed_format << "\n";
+        }
+        std::cout << "[LoadCheck] tensors=" << tensor_count << "\n";
+        std::cout << "[LoadCheck] real_weights=" << (real_weights ? "true" : "false") << "\n";
+        std::cout << "[LoadCheck] verdict=" << (ok ? "QBIN_NATIVE_WEIGHTS_OK" : "QBIN_NATIVE_WEIGHTS_FAIL") << "\n";
+        quillan_model_free(model);
+        return ok ? 0 : 1;
     }
 
     // If no binary file specified, run with in-memory reference model
