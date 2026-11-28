@@ -22,3 +22,6 @@ __pycache__/
 *.pyc
 *.qbin
 *.pt
+
+# Generated local build output
+build_clang/
